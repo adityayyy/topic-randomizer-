@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic Randomizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@400&display=swap" rel="stylesheet">
+<script>
+// Apply saved theme (or system preference) before first paint
+(function(){
+  var t=null;
+  try{ t=JSON.parse(localStorage.getItem('topicRandomizer_theme')) }catch(e){}
+  if(t!=='light'&&t!=='dark'){ t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark' }
+  document.documentElement.setAttribute('data-theme',t);
+})();
+</script>
+<style>
+:root{
+  --color-void:#000000;
+  --color-near-black:#050505;
+  --color-carbon:#292929;
+  --color-graphite:#4d4d4d;
+  --color-ash:#7a7a7a;
+  --color-steel:#8c8c8c;
+  --color-fog:#a3a3a3;
+  --color-silver:#bfbfbf;
+  --color-white:#ffffff;
+  --color-signal-orange:#ff4800;
+  --color-ember:#ff5e23;
+  --color-electric-yellow:#ffd900;
+  --gradient-vector:linear-gradient(to right,#08c380 0%,#fd7c0f 31.73%,#ff2b2b 62.5%,#9500ff 100%);
+  --font-inter:'Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;
+  --font-acid:'Space Grotesk','AcidGrotesk',ui-sans-serif,system-ui,sans-serif;
+
+  /* Liquid-glass tokens */
+  --line:rgba(255,255,255,.10);
+  --line-strong:rgba(255,255,255,.20);
+  --fill-soft:rgba(255,255,255,.05);
+  --glass-a:rgba(255,255,255,.13);
+  --glass-b:rgba(255,255,255,.035);
+  --sheen:rgba(255,255,255,.16);
+  --hl:rgba(255,255,255,.32);
+  --glass-shadow:0 12px 40px rgba(0,0,0,.45);
+  --glow:rgba(255,217,0,.28);
+  --on-accent:#ffffff;
+  --blob-1:rgba(255,72,0,.20);
+  --blob-2:rgba(149,0,255,.16);
+  --blob-3:rgba(8,195,128,.11);
+  color-scheme:dark;
+
+  --radius-full:9999px;
+  --radius-2xl:17.1429px;
+  --radius-3xl:25.7143px;
+}
+:root[data-theme="light"]{
+  --color-void:#eceef4;
+  --color-near-black:#e4e6ee;
+  --color-carbon:#ffffff;
+  --color-graphite:#bbbbbb;
+  --color-ash:#666a75;
+  --color-steel:#555a66;
+  --color-fog:#454a56;
+  --color-silver:#363a45;
+  --color-white:#101218;
+  --line:rgba(30,35,60,.10);
+  --line-strong:rgba(30,35,60,.20);
+  --fill-soft:rgba(255,255,255,.65);
+  --glass-a:rgba(255,255,255,.92);
+  --glass-b:rgba(255,255,255,.58);
+  --sheen:rgba(255,255,255,1);
+  --hl:rgba(255,255,255,1);
+  --glass-shadow:0 1px 2px rgba(30,35,80,.06),0 18px 44px rgba(50,60,120,.14);
+  --glow:rgba(255,72,0,.32);
+  --blob-1:rgba(255,110,50,.30);
+  --blob-2:rgba(150,90,255,.22);
+  --blob-3:rgba(8,195,128,.20);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--color-void);scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  position:relative;
+  isolation:isolate;
+  background:var(--color-void);
+  color:var(--color-white);
+  font-family:var(--font-inter);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+/* Soft colour fields behind the glass so it has something to refract */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(640px 420px at 18% 8%,var(--blob-1),transparent 65%),
+    radial-gradient(560px 420px at 88% 28%,var(--blob-2),transparent 65%),
+    radial-gradient(620px 460px at 55% 95%,var(--blob-3),transparent 65%);
+}
+a{color:var(--color-silver)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.container{max-width:1200px;margin:0 auto;padding:20px 24px 40px}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{position:relative;width:22px;height:22px;border-radius:50%;background:conic-gradient(from 200deg,#08c380,#fd7c0f,#ff2b2b,#9500ff,#08c380)}
+.brand-mark::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--color-void)}
+h1{font-family:var(--font-acid);font-weight:400;font-size:18px;line-height:1.2;letter-spacing:-0.01em;margin:0}
+
+label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--color-steel);display:block;margin-bottom:8px}
+select,input,button,textarea{font-family:var(--font-inter)}
+option{background:var(--color-carbon);color:var(--color-white)}
+
+/* Glass surfaces */
+.card,.glass{
+  position:relative;
+  background:
+    radial-gradient(120% 70% at 10% 0%,var(--sheen),transparent 55%),
+    linear-gradient(145deg,var(--glass-a),var(--glass-b));
+  border:1px solid var(--line);
+  border-radius:var(--radius-3xl);
+  -webkit-backdrop-filter:blur(26px) saturate(170%);
+  backdrop-filter:blur(26px) saturate(170%);
+  box-shadow:inset 0 1px 0 var(--hl),inset 0 0 22px rgba(255,255,255,.04),var(--glass-shadow);
+}
+.card{padding:24px}
+.tile{
+  background:var(--fill-soft);
+  border:1px solid var(--line);
+  border-radius:var(--radius-2xl);
+  padding:16px;
+  text-align:left;
+}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:var(--radius-full);
+  padding:12px 22px;
+  font-size:12px;font-weight:500;
+  color:var(--color-white);
+  border:1px solid var(--line-strong);
+  cursor:pointer;
+  transition:background .15s,transform .05s,box-shadow .15s;
+}
+.btn:focus-visible,.orb:focus-visible,.pill-select select:focus-visible,.scroll-hint:focus-visible{outline:2px solid var(--color-white);outline-offset:2px}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn-sm{padding:7px 14px}
+.undo-note{margin:0 0 12px}
+.undo-note[hidden]{display:none}
+.link-btn{background:none;border:0;padding:0;color:var(--color-signal-orange);font:inherit;font-weight:500;cursor:pointer;text-decoration:underline}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.card-head label{margin:0}
+.btn-primary{
+  background:linear-gradient(180deg,#ff6a2c,var(--color-signal-orange));
+  color:var(--on-accent);
+  border-color:rgba(255,255,255,.75);
+  box-shadow:0 0 0 1px rgba(255,217,0,.45),0 0 26px var(--glow),inset 0 1px 0 rgba(255,255,255,.45);
+}
+.btn-primary:hover{background:linear-gradient(180deg,#ff7a40,var(--color-ember))}
+.btn-secondary{
+  background:linear-gradient(145deg,var(--glass-a),var(--glass-b));
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 var(--hl);
+}
+.btn-secondary:hover{background:var(--fill-soft)}
+
+/* Hero */
+.hero{
+  min-height:calc(100vh - 90px);
+  max-width:760px;margin:0 auto;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+}
+.hero-main{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:16px}
+.hero-title{
+  font-family:var(--font-acid);font-weight:400;
+  font-size:clamp(34px,6vw,56px);line-height:1.08;letter-spacing:-0.01em;
+  margin:0 0 32px;
+}
+.composer{width:100%;min-height:270px;display:flex;flex-direction:column;border-radius:22px}
+.composer-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 28px 14px}
+.result-name{
+  font-family:var(--font-acid);font-weight:400;
+  font-size:clamp(26px,4.2vw,40px);line-height:1.1;letter-spacing:-0.01em;
+  margin:0;overflow-wrap:anywhere;
+}
+.underline{height:3px;width:60px;background:var(--gradient-vector);margin:14px auto 16px;border-radius:2px}
+.result-desc{color:var(--color-fog);margin:0 0 16px;max-width:480px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:var(--radius-full);
+  border:1px solid var(--line-strong);
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--color-steel);
+}
+.chip[hidden]{display:none}
+.chip-accent{border-color:rgba(255,72,0,.5);background:rgba(202,78,23,.22);color:var(--color-white)}
+.chip-accent::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--color-signal-orange)}
+.composer-bar{display:flex;align-items:center;gap:8px;padding:12px 14px;flex-wrap:wrap}
+.composer-bar .spacer{flex:1}
+.pill-select{position:relative}
+.pill-select select{
+  appearance:none;-webkit-appearance:none;
+  background:var(--fill-soft);color:var(--color-white);
+  border:1px solid var(--line-strong);border-radius:var(--radius-full);
+  padding:8px 30px 8px 14px;font-size:12px;font-weight:500;cursor:pointer;
+}
+.pill-select::after{
+  content:"";position:absolute;right:13px;top:50%;width:5px;height:5px;
+  border-right:1.5px solid var(--color-steel);border-bottom:1.5px solid var(--color-steel);
+  transform:translateY(-70%) rotate(45deg);pointer-events:none;
+}
+.orb{
+  width:38px;height:38px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.55);
+  background:radial-gradient(circle at 30% 25%,#ff7a3d,var(--color-signal-orange) 60%);
+  color:#fff;display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 0 0 3px rgba(255,72,0,.18),0 0 22px rgba(255,72,0,.55),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:transform .15s;
+}
+.orb:hover{transform:scale(1.06);background:radial-gradient(circle at 30% 25%,#ff9560,var(--color-ember) 60%)}
+.orb svg{width:16px;height:16px}
+.shuffling .orb{animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.12)}}
+.hero-help{max-width:520px;color:var(--color-steel);font-size:12px;margin:18px 0}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.scroll-hint{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--color-ash);font-size:11px;text-decoration:none;padding:28px 0 8px;
+}
+.scroll-hint svg{width:10px;height:10px}
+
+/* Lower area */
+.grid{display:grid;gap:24px}
+@media(min-width:900px){.grid-2{grid-template-columns:1.2fr .8fr}}
+#more{scroll-margin-top:16px;margin-top:24px}
+.pair-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:4px}
+.pair-row select{flex:1 1 180px}
+.pair-grid{display:grid;gap:16px;margin-top:16px}
+.pair-grid:empty{display:none}
+@media(min-width:700px){.pair-grid{grid-template-columns:1fr 1fr}}
+.history{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.history:empty::after{content:"Your picks will show up here.";color:var(--color-ash);font-size:12px}
+.history li{
+  background:var(--fill-soft);
+  border:1px solid var(--line);
+  border-radius:var(--radius-2xl);
+  padding:12px 14px;
+  display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+}
+.history .topic{font-weight:500}
+.history .meta{font-size:12px;color:var(--color-fog)}
+.checkbox{accent-color:var(--color-signal-orange)}
+.form-row{display:grid;gap:12px;margin-bottom:12px}
+@media(min-width:700px){.form-row{grid-template-columns:1fr 1fr 1fr}}
+select.form,input[type=text]{
+  width:100%;
+  background:var(--fill-soft);
+  color:var(--color-white);
+  border:1px solid var(--line-strong);
+  border-radius:var(--radius-2xl);
+  padding:12px 14px;
+  font-size:14px;
+}
+input::placeholder{color:var(--color-ash)}
+select.form{
+  appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:34px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238c8c8c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+}
+.muted{color:var(--color-ash);font-size:12px}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);text-align:center}
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .glass{border-color:rgba(255,255,255,.9);outline:1px solid var(--line);outline-offset:-1px}
+:root[data-theme="light"] .btn-secondary{background:#ffffff;box-shadow:0 1px 2px rgba(30,35,80,.10),inset 0 1px 0 #fff}
+:root[data-theme="light"] .btn-secondary:hover{background:#f4f5fa}
+:root[data-theme="light"] .pill-select select,
+:root[data-theme="light"] select.form,
+:root[data-theme="light"] input[type=text]{background:#ffffff;box-shadow:0 1px 2px rgba(30,35,80,.06)}
+:root[data-theme="light"] .history li,
+:root[data-theme="light"] .tile{background:#ffffff;box-shadow:0 1px 2px rgba(30,35,80,.06)}
+:root[data-theme="light"] .chip{background:rgba(255,255,255,.8)}
+:root[data-theme="light"] .chip-accent{background:rgba(255,72,0,.12);border-color:rgba(255,72,0,.45)}
+:root[data-theme="light"] .btn-primary{border-color:#fff}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><h1>Topic Randomizer</h1></div>
+  <button class="btn btn-secondary" id="themeToggle" type="button" aria-label="Switch theme"></button>
+</header>
+
+<section class="hero">
+  <div class="hero-main">
+    <h2 class="hero-title">One click.<br>Every weekend topic.</h2>
+
+    <div class="composer glass" id="composer">
+      <div class="composer-body" aria-live="polite">
+        <div class="result-name" id="topicName">Pick a topic</div>
+        <div class="underline"></div>
+        <p class="result-desc" id="topicDesc">Choose a category and difficulty, then hit the arrow.</p>
+        <div class="chips">
+          <span class="chip chip-accent" id="topicCat" hidden></span>
+          <span class="chip" id="topicDiff">Difficulty</span>
+        </div>
+      </div>
+      <div class="composer-bar">
+        <div class="pill-select">
+          <label class="sr-only" for="category">Category</label>
+          <select id="category"></select>
+        </div>
+        <div class="pill-select">
+          <label class="sr-only" for="difficultyFilter">Difficulty</label>
+          <select id="difficultyFilter">
+            <option value="Any">Any difficulty</option>
+            <option>Beginner</option>
+            <option>Intermediate</option>
+            <option>Advanced</option>
+          </select>
+        </div>
+        <span class="spacer"></span>
+        <button class="orb" id="randomizeOrb" type="button" aria-label="Randomize">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <p class="hero-help">Topics won't repeat until you've seen every one in that category and difficulty.</p>
+    <div class="cta-row">
+      <button class="btn btn-secondary" id="resetSeen" type="button">Reset seen topics</button>
+      <button class="btn btn-primary" id="randomize" type="button">Randomize</button>
+    </div>
+  </div>
+
+  <a class="scroll-hint" href="#more">
+    <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 1v8M1.5 5.5 5 9l3.5-3.5"/></svg>
+    Scroll down to explore
+  </a>
+</section>
+
+<div class="grid grid-2" id="more">
+  <section>
+    <div class="card">
+      <label>Weekend Pair</label>
+      <div class="pair-row">
+        <select id="pairCategory" class="form" aria-label="Pair category"></select>
+        <button class="btn btn-secondary" id="pairBtn" type="button">Pick pair</button>
+      </div>
+      <div class="pair-grid" id="pairResults" aria-live="polite"></div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <div class="card-head">
+        <label>History</label>
+        <button class="btn btn-secondary btn-sm" id="clearHistory" type="button">Clear history</button>
+      </div>
+      <p class="muted undo-note" id="undoNote" hidden>History cleared. <button type="button" class="link-btn" id="undoBtn">Undo</button></p>
+      <ul class="history" id="history"></ul>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <label>Add your own topic</label>
+      <div class="form-row">
+        <select id="addCat" class="form" aria-label="Category"></select>
+        <input id="addName" class="form" type="text" placeholder="Topic name" aria-label="Topic name">
+        <select id="addDiff" class="form" aria-label="Difficulty">
+          <option>Beginner</option>
+          <option>Intermediate</option>
+          <option>Advanced</option>
+        </select>
+      </div>
+      <input id="addDesc" type="text" placeholder="One-line description" aria-label="One-line description" style="margin-bottom:12px">
+      <button class="btn btn-secondary" id="addBtn" type="button">Save topic</button>
+      <p class="muted" style="margin:12px 0 0">Saved in this browser only.</p>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <div class="muted" id="footerStats"></div>
+</footer>
+</div>
+
+<script>
+// Top-level data
+const TOPICS = {
+  Tech:[
+    {name:"Embeddings and vector search",desc:"How semantic similarity is stored and queried.",difficulty:"Intermediate"},
+    {name:"How OAuth works",desc:"Authorization flows, tokens, and security tradeoffs.",difficulty:"Intermediate"},
+    {name:"CAP theorem",desc:"Consistency, availability, partition tolerance.",difficulty:"Intermediate"},
+    {name:"Event sourcing",desc:"Persisting state as an immutable log.",difficulty:"Advanced"},
+    {name:"Rust ownership",desc:"Borrow checker, lifetimes, and zero-cost abstractions.",difficulty:"Intermediate"},
+    {name:"WebAssembly",desc:"Compile to Wasm and run in the browser.",difficulty:"Intermediate"},
+    {name:"Circuit breakers",desc:"Fault tolerance for microservices.",difficulty:"Intermediate"},
+    {name:"Merkle trees",desc:"Hash tree verification for data integrity.",difficulty:"Advanced"},
+    {name:"Garbage collection",desc:"Generational GC and pause tradeoffs.",difficulty:"Intermediate"},
+    {name:"CRDTs",desc:"Conflict-free replicated data types.",difficulty:"Advanced"},
+    {name:"HTTP/3",desc:"QUIC, 0-RTT, and connection migration.",difficulty:"Intermediate"},
+    {name:"Service workers",desc:"Offline caches and background sync.",difficulty:"Intermediate"},
+    {name:"React server components",desc:"Server rendering without client JS.",difficulty:"Intermediate"},
+    {name:"Database indexes",desc:"B-trees, covering indexes, selectivity.",difficulty:"Intermediate"},
+    {name:"Rate limiting",desc:"Token bucket vs leaky bucket.",difficulty:"Beginner"},
+    {name:"Zero-knowledge proofs",desc:"Prove knowledge without revealing data.",difficulty:"Advanced"},
+    {name:"Key derivation",desc:"PBKDF2, Argon2, and salt.",difficulty:"Intermediate"},
+    {name:"TCP congestion control",desc:"CUBIC, BBR, and loss recovery.",difficulty:"Advanced"},
+    {name:"Edge computing",desc:"Compute near the user.",difficulty:"Intermediate"},
+    {name:"Container networking",desc:"Namespaces, CNI, service mesh.",difficulty:"Intermediate"},
+    {name:"Deterministic builds",desc:"Reproducible artifacts.",difficulty:"Advanced"},
+    {name:"Feature flags",desc:"Release safely with toggles.",difficulty:"Beginner"},
+    {name:"Observability triad",desc:"Logs, metrics, traces.",difficulty:"Beginner"},
+    {name:"API versioning",desc:"URL, header, media type strategies.",difficulty:"Intermediate"},
+    {name:"Content security policy",desc:"Mitigate XSS with headers.",difficulty:"Intermediate"}
+  ],
+  "Non-Tech":[
+    {name:"Game theory and prisoner's dilemma",desc:"Strategic decision making.",difficulty:"Intermediate"},
+    {name:"Cognitive biases",desc:"How minds systematically err.",difficulty:"Beginner"},
+    {name:"Mental models",desc:"Reusable thinking tools.",difficulty:"Beginner"},
+    {name:"The map is not the territory",desc:"Models vs reality.",difficulty:"Beginner"},
+    {name:"Inversion",desc:"Solve by asking what to avoid.",difficulty:"Beginner"},
+    {name:"Second-order thinking",desc:"Consequences of consequences.",difficulty:"Intermediate"},
+    {name:"Pareto principle",desc:"80/20 in practice.",difficulty:"Beginner"},
+    {name:"Habit loops",desc:"Cue, craving, response, reward.",difficulty:"Beginner"},
+    {name:"Deep work",desc:"Focused blocks for complex tasks.",difficulty:"Beginner"},
+    {name:"Stoicism",desc:"Control what you can.",difficulty:"Beginner"},
+    {name:"Scarcity mindset",desc:"Psychology of limited resources.",difficulty:"Intermediate"},
+    {name:"Negotiation anchors",desc:"First offer effects.",difficulty:"Intermediate"},
+    {name:"The Lindy effect",desc:"Longevity predicts longevity.",difficulty:"Intermediate"},
+    {name:"Founder mode",desc:"Operator vs manager tradeoffs.",difficulty:"Intermediate"},
+    {name:"Deliberate practice",desc:"How to improve faster.",difficulty:"Beginner"},
+    {name:"Confirmation bias",desc:"Seeking agreeing evidence.",difficulty:"Beginner"},
+    {name:"Sunk cost fallacy",desc:"When to walk away.",difficulty:"Beginner"},
+    {name:"Dunning-Kruger",desc:"Competence and self-assessment.",difficulty:"Beginner"},
+    {name:"Growth vs fixed mindset",desc:"Beliefs about ability.",difficulty:"Beginner"},
+    {name:"The paradox of choice",desc:"More options, less satisfaction.",difficulty:"Intermediate"},
+    {name:"Loss aversion",desc:"Fear of loss over gain.",difficulty:"Intermediate"},
+    {name:"Memento mori",desc:"Remember mortality.",difficulty:"Intermediate"},
+    {name:"Elegant solutions",desc:"Simple over clever.",difficulty:"Intermediate"},
+    {name:"Learning by teaching",desc:"The protégé effect.",difficulty:"Beginner"},
+    {name:"Context switching cost",desc:"Why focus matters.",difficulty:"Intermediate"},
+    {name:"Decision fatigue",desc:"Quality declines with choices.",difficulty:"Beginner"}
+  ],
+  Business:[
+    {name:"Business model canvas",desc:"Nine blocks to map value.",difficulty:"Beginner"},
+    {name:"Unit economics",desc:"CAC, LTV, payback.",difficulty:"Intermediate"},
+    {name:"Pricing psychology",desc:"Anchors, decoys, charm pricing.",difficulty:"Intermediate"},
+    {name:"Moat types",desc:"Network, brand, cost, switching.",difficulty:"Intermediate"},
+    {name:"OKRs",desc:"Objectives and key results.",difficulty:"Beginner"},
+    {name:"Cohort analysis",desc:"Retention by start date.",difficulty:"Intermediate"},
+    {name:"Go-to-market",desc:"Finding first customers.",difficulty:"Intermediate"},
+    {name:"Product-market fit",desc:"Signals and testing.",difficulty:"Intermediate"},
+    {name:"Sales funnels",desc:"Aware to convert.",difficulty:"Beginner"},
+    {name:"Churn",desc:"Why customers leave.",difficulty:"Intermediate"},
+    {name:"Freemium",desc:"Conversion tradeoffs.",difficulty:"Intermediate"},
+    {name:"Landing page conversion",desc:"Hero, social proof, CTA.",difficulty:"Beginner"},
+    {name:"Customer discovery",desc:"Problem interviews.",difficulty:"Beginner"},
+    {name:"Strategic partnerships",desc:"Win-win alliances.",difficulty:"Intermediate"},
+    {name:"KPIs vs vanity metrics",desc:"What to track.",difficulty:"Beginner"},
+    {name:"Brand positioning",desc:"Where you compete.",difficulty:"Intermediate"},
+    {name:"Minimum viable product",desc:"What to ship first.",difficulty:"Beginner"},
+    {name:"Blue ocean strategy",desc:"Make competition irrelevant.",difficulty:"Intermediate"},
+    {name:"Competitive analysis",desc:"Map strengths and gaps.",difficulty:"Intermediate"},
+    {name:"Customer segmentation",desc:"Who matters most.",difficulty:"Beginner"},
+    {name:"Value proposition",desc:"Why choose us.",difficulty:"Beginner"},
+    {name:"Revenue recognition",desc:"When income is booked.",difficulty:"Advanced"},
+    {name:"Runway",desc:"Months of cash left.",difficulty:"Beginner"},
+    {name:"Ad creatives",desc:"Hook, problem, solution.",difficulty:"Beginner"},
+    {name:"Retention loops",desc:"Keep users coming back.",difficulty:"Intermediate"}
+  ],
+  Finance:[
+    {name:"Compound interest and inflation",desc:"Real vs nominal returns.",difficulty:"Beginner"},
+    {name:"DCA vs lump sum",desc:"Investing strategies.",difficulty:"Beginner"},
+    {name:"Risk vs return",desc:"Efficient frontier.",difficulty:"Intermediate"},
+    {name:"Cash flow",desc:"In, out, timing.",difficulty:"Beginner"},
+    {name:"Budgeting",desc:"Zero-based and envelope.",difficulty:"Beginner"},
+    {name:"Net present value",desc:"Today's value of future cash.",difficulty:"Intermediate"},
+    {name:"Debt avalanche",desc:"Pay highest interest first.",difficulty:"Beginner"},
+    {name:"Emergency fund",desc:"3-6 months of costs.",difficulty:"Beginner"},
+    {name:"Tax-loss harvesting",desc:"Offset gains with losses.",difficulty:"Advanced"},
+    {name:"Index funds",desc:"Broad market exposure.",difficulty:"Beginner"},
+    {name:"Credit score",desc:"Factors and impact.",difficulty:"Beginner"},
+    {name:"Opportunity cost",desc:"What you give up.",difficulty:"Beginner"},
+    {name:"Diversification",desc:"Don't put all eggs.",difficulty:"Beginner"},
+    {name:"Inflation hedging",desc:"Real assets.",difficulty:"Intermediate"},
+    {name:"Financial independence",desc:"Save rate and FIRE.",difficulty:"Intermediate"},
+    {name:"Budgeting for goals",desc:"Align spend with values.",difficulty:"Beginner"},
+    {name:"Compound interest",desc:"Time in market.",difficulty:"Beginner"},
+    {name:"Spending audits",desc:"Where money goes.",difficulty:"Beginner"},
+    {name:"Negotiating salary",desc:"Range and anchoring.",difficulty:"Intermediate"},
+    {name:"Interest rate risk",desc:"Rates rise, bonds fall.",difficulty:"Intermediate"},
+    {name:"CAPM",desc:"Cost of capital.",difficulty:"Advanced"},
+    {name:"Behavioral finance",desc:"Emotion in markets.",difficulty:"Intermediate"},
+    {name:"Sinking funds",desc:"Save for planned expenses.",difficulty:"Beginner"},
+    {name:"Asset allocation",desc:"Stocks, bonds, cash.",difficulty:"Intermediate"},
+    {name:"Savings rate",desc:"Percent saved determines speed.",difficulty:"Beginner"}
+  ],
+  Science:[
+    {name:"Photosynthesis",desc:"Light to sugar conversion.",difficulty:"Beginner"},
+    {name:"CRISPR",desc:"Gene editing basics.",difficulty:"Intermediate"},
+    {name:"Quantum superposition",desc:"Multiple states at once.",difficulty:"Advanced"},
+    {name:"Neuroplasticity",desc:"Brain rewires with use.",difficulty:"Beginner"},
+    {name:"Entropy",desc:"Disorder increases.",difficulty:"Intermediate"},
+    {name:"Evolution by natural selection",desc:"Variation, selection, inheritance.",difficulty:"Beginner"},
+    {name:"CRISPR ethics",desc:"Germline editing.",difficulty:"Intermediate"},
+    {name:"Relativity",desc:"Space-time curvature.",difficulty:"Advanced"},
+    {name:"Vaccines",desc:"Immune memory.",difficulty:"Beginner"},
+    {name:"Heat death",desc:"Ultimate fate of universe.",difficulty:"Advanced"},
+    {name:"Photosynthesis C3 vs C4",desc:"Adaptations.",difficulty:"Intermediate"},
+    {name:"Mitochondria",desc:"Powerhouse of cell.",difficulty:"Beginner"},
+    {name:"Quantum entanglement",desc:"Spooky correlations.",difficulty:"Advanced"},
+    {name:"Cell differentiation",desc:"One genome, many cells.",difficulty:"Intermediate"},
+    {name:"Oceans acidification",desc:"CO2 absorption.",difficulty:"Intermediate"},
+    {name:"Climate feedbacks",desc:"Amplifying loops.",difficulty:"Intermediate"},
+    {name:"DNA replication",desc:"Semiconservative.",difficulty:"Intermediate"},
+    {name:"Photosynthesis efficiency",desc:"Why 1%.",difficulty:"Advanced"},
+    {name:"Astrobiology",desc:"Search for life.",difficulty:"Intermediate"},
+    {name:"Black holes",desc:"Event horizon.",difficulty:"Intermediate"},
+    {name:"Neurons",desc:"Action potentials.",difficulty:"Intermediate"},
+    {name:"Ecosystem services",desc:"Nature's benefits.",difficulty:"Beginner"},
+    {name:"CRISPR prime editing",desc:"Precision edits.",difficulty:"Advanced"},
+    {name:"Photosynthesis",desc:"Light reactions.",difficulty:"Beginner"},
+    {name:"Quantum tunneling",desc:"Particles through barriers.",difficulty:"Advanced"}
+  ],
+  History:[
+    {name:"Treaty of Versailles",desc:"WWI aftermath.",difficulty:"Intermediate"},
+    {name:"Printing press",desc:"Information revolution.",difficulty:"Beginner"},
+    {name:"Silk Road",desc:"Trade and ideas.",difficulty:"Beginner"},
+    {name:"Industrial revolution",desc:"Steam to factories.",difficulty:"Intermediate"},
+    {name:"Cold War",desc:"US vs USSR.",difficulty:"Intermediate"},
+    {name:"Fall of Rome",desc:"Why empires fall.",difficulty:"Intermediate"},
+    {name:"Enlightenment",desc:"Reason and rights.",difficulty:"Intermediate"},
+    {name:"Suez crisis",desc:"1956 decolonization.",difficulty:"Intermediate"},
+    {name:"Colonialism",desc:"Impact patterns.",difficulty:"Intermediate"},
+    {name:"Reformation",desc:"Religious split.",difficulty:"Intermediate"},
+    {name:"Pax Romana",desc:"Two centuries peace.",difficulty:"Beginner"},
+    {name:"Abolition movement",desc:"End of slavery.",difficulty:"Beginner"},
+    {name:"The Great Depression",desc:"Causes and New Deal.",difficulty:"Intermediate"},
+    {name:"Cultural revolution",desc:"China 1966-76.",difficulty:"Advanced"},
+    {name:"Meiji restoration",desc:"Japan modernizes.",difficulty:"Intermediate"},
+    {name:"WWII Pacific",desc:"Island hopping.",difficulty:"Intermediate"},
+    {name:"Renaissance",desc:"Rebirth of arts.",difficulty:"Beginner"},
+    {name:"Fall of Berlin Wall",desc:"1989.",difficulty:"Beginner"},
+    {name:"Ottoman Empire",desc:"Decline and fall.",difficulty:"Intermediate"},
+    {name:"Scottsboro Boys",desc:"Justice and racism.",difficulty:"Intermediate"},
+    {name:"Mongol Empire",desc:"Largest contiguous.",difficulty:"Intermediate"},
+    {name:"Spanish flu",desc:"Pandemic 1918.",difficulty:"Intermediate"},
+    {name:"Cuban missile crisis",desc:"Nuclear standoff.",difficulty:"Intermediate"},
+    {name:"Phoenician alphabet",desc:"Writing spread.",difficulty:"Beginner"},
+    {name:"Vietnam War",desc:"Guerrilla and politics.",difficulty:"Intermediate"}
+  ],
+  Philosophy:[
+    {name:"Stoicism",desc:"Control focus.",difficulty:"Beginner"},
+    {name:"Utilitarianism",desc:"Greatest good.",difficulty:"Intermediate"},
+    {name:"Existentialism",desc:"Meaning is made.",difficulty:"Intermediate"},
+    {name:"Ethical egoism",desc:"Self interest.",difficulty:"Intermediate"},
+    {name:"Categorical imperative",desc:"Universal law.",difficulty:"Advanced"},
+    {name:"Mind-body problem",desc:"Dualism vs materialism.",difficulty:"Advanced"},
+    {name:"Free will",desc:"Determination.",difficulty:"Advanced"},
+    {name:"Epistemology",desc:"What can we know.",difficulty:"Intermediate"},
+    {name:"Virtue ethics",desc:"Character over rules.",difficulty:"Intermediate"},
+    {name:"Social contract",desc:"Legitimacy of state.",difficulty:"Intermediate"},
+    {name:"Moral relativism",desc:"No absolute morals.",difficulty:"Intermediate"},
+    {name:"Phenomenology",desc:"Experience first.",difficulty:"Advanced"},
+    {name:"Trolley problem",desc:"Utilitarian dilemma.",difficulty:"Beginner"},
+    {name:"Nihilism",desc:"Life is meaningless.",difficulty:"Intermediate"},
+    {name:"Deontology",desc:"Duty-based ethics.",difficulty:"Intermediate"},
+    {name:"Empiricism",desc:"Knowledge from senses.",difficulty:"Beginner"},
+    {name:"Rationalism",desc:"Reason first.",difficulty:"Intermediate"},
+    {name:"The good life",desc:"Eudaimonia.",difficulty:"Beginner"},
+    {name:"Moral luck",desc:"Circumstance matters.",difficulty:"Advanced"},
+    {name:"Personal identity",desc:"What makes you you.",difficulty:"Advanced"},
+    {name:"Political realism",desc:"Power over ideals.",difficulty:"Intermediate"},
+    {name:"Aesthetic value",desc:"Beauty and art.",difficulty:"Intermediate"},
+    {name:"Skepticism",desc:"Doubt knowledge.",difficulty:"Beginner"},
+    {name:"Absurdism",desc:"Meaningless with purpose.",difficulty:"Intermediate"},
+    {name:"Ethics of AI",desc:"Moral machines.",difficulty:"Intermediate"}
+  ],
+  Health:[
+    {name:"Sleep hygiene",desc:"Consistent schedule.",difficulty:"Beginner"},
+    {name:"Gut microbiome",desc:"Bacteria influence.",difficulty:"Intermediate"},
+    {name:"VO2 max",desc:"Aerobic capacity.",difficulty:"Intermediate"},
+    {name:"Intermittent fasting",desc:"Time restricted eating.",difficulty:"Beginner"},
+    {name:"Hydration",desc:"Water needs.",difficulty:"Beginner"},
+    {name:"Stress response",desc:"Fight or flight.",difficulty:"Intermediate"},
+    {name:"Immune system",desc:"Innate and adaptive.",difficulty:"Intermediate"},
+    {name:"Meditation",desc:"Attention training.",difficulty:"Beginner"},
+    {name:"Nutrition basics",desc:"Macros and micronutrients.",difficulty:"Beginner"},
+    {name:"Posture",desc:"Spine alignment.",difficulty:"Beginner"},
+    {name:"Circadian rhythm",desc:"Body clock.",difficulty:"Intermediate"},
+    {name:"Protein synthesis",desc:"Muscle building.",difficulty:"Intermediate"},
+    {name:"Mental health",desc:"Stigma and support.",difficulty:"Beginner"},
+    {name:"Vaccination",desc:"Herd immunity.",difficulty:"Beginner"},
+    {name:"Blood pressure",desc:"Hypertension risks.",difficulty:"Beginner"},
+    {name:"Chronic inflammation",desc:"Low grade driver.",difficulty:"Intermediate"},
+    {name:"Paleo vs modern diet",desc:"Evolution mismatch.",difficulty:"Intermediate"},
+    {name:"Heart rate zones",desc:"Training intensity.",difficulty:"Intermediate"},
+    {name:"Breathwork",desc:"CO2 tolerance.",difficulty:"Beginner"},
+    {name:"Sleep stages",desc:"REM and deep.",difficulty:"Intermediate"},
+    {name:"Gut-brain axis",desc:"Microbiome signaling.",difficulty:"Advanced"},
+    {name:"Eating disorders",desc:"Prevention and help.",difficulty:"Intermediate"},
+    {name:"Movement snacks",desc:"Micro activity.",difficulty:"Beginner"},
+    {name:"Nootropic basics",desc:"Cognitive enhancers.",difficulty:"Intermediate"},
+    {name:"Recovery",desc:"Sleep, nutrition, stress.",difficulty:"Beginner"}
+  ]
+};
+
+// State
+const categories = Object.keys(TOPICS);
+const allCategories = [...categories, "Surprise Me"];
+let selectedCategory = categories[0];
+let seen = load('seen', {});
+let history = load('history', []);
+let custom = load('custom', {});
+
+// Helpers
+function load(key, fallback){
+  try{ const raw = localStorage.getItem('topicRandomizer_'+key); return raw?JSON.parse(raw):fallback }catch{return fallback}
+}
+function save(key,val){ try{ localStorage.setItem('topicRandomizer_'+key, JSON.stringify(val)) }catch{}}
+function uuid(){ return Math.random().toString(36).slice(2) }
+
+// UI init
+const catSelect = document.getElementById('category');
+const pairCat = document.getElementById('pairCategory');
+const addCat = document.getElementById('addCat');
+allCategories.forEach(c=>{ [catSelect,pairCat,addCat].forEach(s=>{ const o=document.createElement('option');o.value=c;o.textContent=c;s.appendChild(o)})});
+document.getElementById('category').value = selectedCategory;
+
+// Render history
+function renderHistory(){
+  const ul = document.getElementById('history');
+  document.getElementById('clearHistory').disabled = history.length===0;
+  ul.innerHTML='';
+  history.slice(0,10).forEach(h=>{
+    const li=document.createElement('li');
+    li.innerHTML=`<input type="checkbox" class="checkbox" ${h.done?'checked':''} data-id="${h.id}" aria-label="Mark done"><div><div class="topic">${h.topic}</div><div class="meta">${h.category}</div></div><span class="muted">${new Date(h.ts).toLocaleDateString()}</span>`;
+    ul.appendChild(li);
+  })
+}
+renderHistory();
+
+// Shuffle animation
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function descOf(t){ return t.desc ?? t.description ?? '' }
+function setResult(topic){
+  document.getElementById('topicName').textContent = topic.name;
+  document.getElementById('topicDesc').textContent = descOf(topic);
+  document.getElementById('topicDiff').textContent = topic.difficulty;
+}
+
+async function randomize(){
+  const cat = catSelect.value;
+  const diff = document.getElementById('difficultyFilter').value; // "Any" or a level
+  const matches = t => diff==='Any' || t.difficulty===diff;
+  const poolFor = c => [...(TOPICS[c]||[]), ...(custom[c]||[])].filter(matches);
+  let realCat = cat;
+  if(cat==='Surprise Me'){
+    // only choose among categories that have topics at this difficulty
+    const options = categories.filter(c=>poolFor(c).length);
+    realCat = (options.length? options : categories)[Math.floor(Math.random()*(options.length||categories.length))];
+  }
+  const pool = poolFor(realCat);
+  if(!pool.length){ alert(`No ${diff} topics in ${realCat} yet.`); return }
+  if(!seen[realCat]) seen[realCat]=[];
+  let unused = pool.filter(t=>!seen[realCat].includes(t.name));
+  if(unused.length===0){
+    // everything at this difficulty was used: reset only those topics
+    const names = pool.map(t=>t.name);
+    seen[realCat] = seen[realCat].filter(n=>!names.includes(n));
+    unused = pool;
+  }
+  // animation
+  const nameEl=document.getElementById('topicName');
+  const descEl=document.getElementById('topicDesc');
+  if(!reduceMotion){
+    for(let i=0;i<12;i++){
+      const t=pool[Math.floor(Math.random()*pool.length)];
+      nameEl.textContent=t.name;
+      descEl.textContent=descOf(t);
+      await new Promise(r=>setTimeout(r,60));
+    }
+  }
+  const pick = unused[Math.floor(Math.random()*unused.length)];
+  seen[realCat].push(pick.name);
+  setResult(pick);
+  const catChip=document.getElementById('topicCat'); catChip.textContent=realCat; catChip.hidden=false;
+  // history
+  history.unshift({id:uuid(),category:realCat,topic:pick.name,ts:Date.now(),done:false});
+  if(history.length>50) history.pop();
+  save('seen',seen); save('history',history);
+  renderHistory();
+}
+
+// One guarded entry point (ignores clicks while the shuffle is running)
+let busy=false;
+async function randomizeSafe(){
+  if(busy) return;
+  busy=true;
+  const box=document.getElementById('composer');
+  box.classList.add('shuffling');
+  try{ await randomize() } finally { busy=false; box.classList.remove('shuffling') }
+}
+document.getElementById('randomize').addEventListener('click',randomizeSafe);
+document.getElementById('randomizeOrb').addEventListener('click',randomizeSafe);
+
+// Footer: how many built-in topics there are
+(function(){
+  const total = categories.reduce((n,c)=>n+TOPICS[c].length,0);
+  document.getElementById('footerStats').textContent = total+' built-in topics across '+categories.length+' categories';
+})();
+document.getElementById('resetSeen').addEventListener('click',()=>{
+  const cat = catSelect.value==='Surprise Me'? null : catSelect.value;
+  if(!cat){ Object.keys(seen).forEach(k=>seen[k]=[]); }
+  else { seen[cat]=[] }
+  save('seen',seen);
+  alert('Seen topics reset');
+});
+
+// Theme toggle (saved in localStorage, defaults to system preference)
+const themeBtn = document.getElementById('themeToggle');
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeBtn.textContent = t==='dark' ? 'Light mode' : 'Dark mode';
+  themeBtn.setAttribute('aria-label', t==='dark' ? 'Switch to light mode' : 'Switch to dark mode');
+}
+applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
+themeBtn.addEventListener('click',()=>{
+  const next = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  applyTheme(next);
+  save('theme',next);
+});
+
+// Weekend pair
+document.getElementById('pairBtn').addEventListener('click',()=>{
+  const cat2 = pairCat.value==='Surprise Me'? categories[Math.floor(Math.random()*categories.length)] : pairCat.value;
+  const techPool = [...TOPICS.Tech,...(custom.Tech||[])];
+  const catPool = [...(TOPICS[cat2]||[]), ...(custom[cat2]||[])];
+  if(!techPool.length||!catPool.length){ alert('No topics'); return }
+  const t1 = techPool[Math.floor(Math.random()*techPool.length)];
+  const t2 = catPool[Math.floor(Math.random()*catPool.length)];
+  const wrap=document.getElementById('pairResults');
+  wrap.innerHTML=`
+    <div class="tile"><h3 style="margin:0 0 8px;font-family:var(--font-acid);font-weight:400;font-size:22px">Tech</h3><div>${t1.name}</div><div class="muted">${descOf(t1)}</div></div>
+    <div class="tile"><h3 style="margin:0 0 8px;font-family:var(--font-acid);font-weight:400;font-size:22px">${cat2}</h3><div>${t2.name}</div><div class="muted">${descOf(t2)}</div></div>
+  `;
+});
+
+// Add topic
+document.getElementById('addBtn').addEventListener('click',()=>{
+  const cat = addCat.value;
+  const name = document.getElementById('addName').value.trim();
+  const desc = document.getElementById('addDesc').value.trim();
+  const diff = document.getElementById('addDiff').value;
+  if(!name||!desc){ alert('Fill name and description'); return }
+  if(!custom[cat]) custom[cat]=[];
+  custom[cat].push({name,description:desc,difficulty:diff});
+  save('custom',custom);
+  document.getElementById('addName').value='';
+  document.getElementById('addDesc').value='';
+  alert('Topic saved');
+});
+
+// Clear history (keeps seen topics and your own topics)
+document.getElementById('clearHistory').addEventListener('click',()=>{
+  if(!history.length) return;
+  clearedBackup = history;
+  history = [];
+  save('history',history);
+  renderHistory();
+  showUndo();
+});
+// Undo (available for 8 seconds after clearing)
+let clearedBackup = null, undoTimer = null;
+const undoNote = document.getElementById('undoNote');
+function hideUndo(){ undoNote.hidden = true; clearedBackup = null; clearTimeout(undoTimer) }
+function showUndo(){
+  undoNote.hidden = false;
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, 8000);
+}
+document.getElementById('undoBtn').addEventListener('click',()=>{
+  if(clearedBackup){ history = clearedBackup; save('history',history); renderHistory() }
+  hideUndo();
+});
+
+// History done toggle
+document.getElementById('history').addEventListener('change',e=>{
+  if(e.target.type==='checkbox'){
+    const id=e.target.dataset.id;
+    const h=history.find(x=>x.id===id);
+    if(h){ h.done=e.target.checked; save('history',history) }
+  }
+});
+</script>
+</body>
+</html>
