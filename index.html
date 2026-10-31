@@ -147,7 +147,7 @@ option{background:var(--color-carbon);color:var(--color-white)}
   cursor:pointer;
   transition:background .15s,transform .05s,box-shadow .15s;
 }
-.btn:focus-visible,.orb:focus-visible,.pill-select select:focus-visible,.scroll-hint:focus-visible{outline:2px solid var(--color-white);outline-offset:2px}
+.btn:focus-visible,.pill-select select:focus-visible,.scroll-hint:focus-visible{outline:2px solid var(--color-white);outline-offset:2px}
 .btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.45;cursor:default;transform:none}
 .btn-sm{padding:7px 14px}
@@ -201,8 +201,7 @@ option{background:var(--color-carbon);color:var(--color-white)}
 .chip[hidden]{display:none}
 .chip-accent{border-color:rgba(255,72,0,.5);background:rgba(202,78,23,.22);color:var(--color-white)}
 .chip-accent::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--color-signal-orange)}
-.composer-bar{display:flex;align-items:center;gap:8px;padding:12px 14px;flex-wrap:wrap}
-.composer-bar .spacer{flex:1}
+.composer-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;flex-wrap:wrap}
 .pill-select{position:relative}
 .pill-select select{
   appearance:none;-webkit-appearance:none;
@@ -215,18 +214,8 @@ option{background:var(--color-carbon);color:var(--color-white)}
   border-right:1.5px solid var(--color-steel);border-bottom:1.5px solid var(--color-steel);
   transform:translateY(-70%) rotate(45deg);pointer-events:none;
 }
-.orb{
-  width:38px;height:38px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.55);
-  background:radial-gradient(circle at 30% 25%,#ff7a3d,var(--color-signal-orange) 60%);
-  color:#fff;display:grid;place-items:center;cursor:pointer;
-  box-shadow:0 0 0 3px rgba(255,72,0,.18),0 0 22px rgba(255,72,0,.55),inset 0 1px 0 rgba(255,255,255,.5);
-  transition:transform .15s;
-}
-.orb:hover{transform:scale(1.06);background:radial-gradient(circle at 30% 25%,#ff9560,var(--color-ember) 60%)}
-.orb svg{width:16px;height:16px}
-.shuffling .orb{animation:pulse .5s ease-in-out infinite alternate}
-@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.12)}}
+#randomize.shuffling{animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
 .hero-help{max-width:520px;color:var(--color-steel);font-size:12px;margin:18px 0}
 .cta-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .scroll-hint{
@@ -286,8 +275,7 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);text-al
 :root[data-theme="light"] .tile{background:#ffffff;box-shadow:0 1px 2px rgba(30,35,80,.06)}
 :root[data-theme="light"] .chip{background:rgba(255,255,255,.8)}
 :root[data-theme="light"] .chip-accent{background:rgba(255,72,0,.12);border-color:rgba(255,72,0,.45)}
-:root[data-theme="light"] .btn-primary{border-color:#fff}
-@media (prefers-reduced-motion:reduce){
+&@media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *{animation:none!important;transition:none!important}
 }
@@ -308,7 +296,7 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);text-al
       <div class="composer-body" aria-live="polite">
         <div class="result-name" id="topicName">Pick a topic</div>
         <div class="underline"></div>
-        <p class="result-desc" id="topicDesc">Choose a category and difficulty, then hit the arrow.</p>
+        <p class="result-desc" id="topicDesc">Choose a category and difficulty, then hit Randomize.</p>
         <div class="chips">
           <span class="chip chip-accent" id="topicCat" hidden></span>
           <span class="chip" id="topicDiff">Difficulty</span>
@@ -328,10 +316,6 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);text-al
             <option>Advanced</option>
           </select>
         </div>
-        <span class="spacer"></span>
-        <button class="orb" id="randomizeOrb" type="button" aria-label="Randomize">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>
-        </button>
       </div>
     </div>
 
@@ -644,7 +628,7 @@ function renderHistory(){
   ul.innerHTML='';
   history.slice(0,10).forEach(h=>{
     const li=document.createElement('li');
-    li.innerHTML=`<input type="checkbox" class="checkbox" ${h.done?'checked':''} data-id="${h.id}" aria-label="Mark done"><div><div class="topic">${h.topic}</div><div class="meta">${h.category}</div></div><span class="muted">${new Date(h.ts).toLocaleDateString()}</span>`;
+    li.innerHTML=`<input type="checkbox" class="checkbox" ${h.done?'checked':''} data-id="${h.id}" aria-label="Mark done"><div><div class="topic">${h.topic}</div><div class="meta">${h.category}${h.pair?' · Weekend Pair':''}</div></div><span class="muted">${new Date(h.ts).toLocaleDateString()}</span>`;
     ul.appendChild(li);
   })
 }
@@ -707,12 +691,11 @@ let busy=false;
 async function randomizeSafe(){
   if(busy) return;
   busy=true;
-  const box=document.getElementById('composer');
-  box.classList.add('shuffling');
-  try{ await randomize() } finally { busy=false; box.classList.remove('shuffling') }
+  const btn=document.getElementById('randomize');
+  btn.classList.add('shuffling');
+  try{ await randomize() } finally { busy=false; btn.classList.remove('shuffling') }
 }
 document.getElementById('randomize').addEventListener('click',randomizeSafe);
-document.getElementById('randomizeOrb').addEventListener('click',randomizeSafe);
 
 // Footer: how many built-in topics there are
 (function(){
@@ -754,6 +737,13 @@ document.getElementById('pairBtn').addEventListener('click',()=>{
     <div class="tile"><h3 style="margin:0 0 8px;font-family:var(--font-acid);font-weight:400;font-size:22px">Tech</h3><div>${t1.name}</div><div class="muted">${descOf(t1)}</div></div>
     <div class="tile"><h3 style="margin:0 0 8px;font-family:var(--font-acid);font-weight:400;font-size:22px">${cat2}</h3><div>${t2.name}</div><div class="muted">${descOf(t2)}</div></div>
   `;
+  // Add both topics to History (Tech on top, then the second one)
+  const now = Date.now();
+  history.unshift({id:uuid(),category:cat2,topic:t2.name,ts:now,done:false,pair:true});
+  history.unshift({id:uuid(),category:'Tech',topic:t1.name,ts:now,done:false,pair:true});
+  while(history.length>50) history.pop();
+  save('history',history);
+  renderHistory();
 });
 
 // Add topic
@@ -790,7 +780,7 @@ function showUndo(){
   undoTimer = setTimeout(hideUndo, 8000);
 }
 document.getElementById('undoBtn').addEventListener('click',()=>{
-  if(clearedBackup){ history = clearedBackup; save('history',history); renderHistory() }
+  if(clearedBackup){ history = [...history, ...clearedBackup].slice(0,50); save('history',history); renderHistory() }
   hideUndo();
 });
 
